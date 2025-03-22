@@ -1,4 +1,4 @@
-# Roundtrippers
+# RoundTrippers
 
 Collection of [http.RoundTripper](https://pkg.go.dev/net/http#RoundTripper) to
 augment your http.Client
