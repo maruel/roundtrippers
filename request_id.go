@@ -10,8 +10,10 @@ import (
 	"net/http"
 )
 
-// RequestID is a http.RoundTripper that add X-Request-ID to each request. It
-// can be useful to track requests simultaneously on the client and the server
+// RequestID is a http.RoundTripper that adds a unique X-Request-ID to each
+// request.
+//
+// It is useful to track requests simultaneously on the client and the server
 // or for logging purposes.
 type RequestID struct {
 	Transport http.RoundTripper
