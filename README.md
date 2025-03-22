@@ -1,6 +1,7 @@
 # Roundtrippers
 
-Collection of http.RoundTripper to augment your http.Client
+Collection of [http.RoundTripper](https://pkg.go.dev/net/http#RoundTripper to
+augment your http.Client
 
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/maruel/roundtrippers/.svg)](https://pkg.go.dev/github.com/maruel/roundtrippers/)
