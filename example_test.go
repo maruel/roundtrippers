@@ -21,20 +21,37 @@ import (
 	"github.com/maruel/roundtrippers"
 )
 
-func Example() {
+func Example_gET() {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO: Check Accept-Encoding first!
+		w.Header().Set("Content-Encoding", "zstd")
+		c, err := zstd.NewWriter(w)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_, _ = c.Write([]byte("Awesome"))
+		if err = c.Close(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}))
+	defer ts.Close()
+
 	// Make all HTTP request in the current program:
 	// - Add a X-Request-ID for tracking both client and server side.
 	// - Add logging.
 	// - Accept compressed responses with zstandard and brotli, in addition to gzip.
 	// - Add Authorization Bearer header.
+
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	const apiKey = "secret-key-that-will-not-appear-in-logs!"
 
 	http.DefaultClient.Transport = &roundtrippers.RequestID{
-		Transport: &roundtrippers.Log{
-			L: logger,
-			Transport: &roundtrippers.AcceptCompressed{
+		Transport: &roundtrippers.AcceptCompressed{
+			Transport: &roundtrippers.Log{
+				L: logger,
 				Transport: &roundtrippers.Header{
 					Header:    http.Header{"Authorization": []string{"Bearer " + apiKey}},
 					Transport: http.DefaultTransport,
@@ -44,17 +61,84 @@ func Example() {
 	}
 
 	// Now any request will be logged, authenticated and compressed.
-	_, _ = http.Get("...")
+	resp, err := http.Get(ts.URL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	resp.Body.Close()
+	fmt.Printf("GET: %s\n", string(b))
+}
 
-	// For further compression with advanced backends (e.g. Google's), you can
-	// add roundtrippers.PostCompressed to compress uploads too!
-	http.DefaultClient.Transport = &roundtrippers.PostCompressed{
-		Encoding:  "gzip",
-		Transport: http.DefaultClient.Transport,
+func Example_pOST() {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if ce := r.Header.Get("Content-Encoding"); ce != "gzip" {
+			http.Error(w, "sorry, I only read gzip", http.StatusBadRequest)
+			return
+		}
+		gz, err := gzip.NewReader(r.Body)
+		if err != nil {
+			http.Error(w, "error: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		b, err := io.ReadAll(gz)
+		if err != nil {
+			http.Error(w, "error: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err = gz.Close(); err != nil {
+			http.Error(w, "error: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if s := string(b); s != "hello" {
+			http.Error(w, fmt.Sprintf("want \"hello\", got %q", s), http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("world"))
+	}))
+	defer ts.Close()
+
+	// Make all HTTP request in the current program:
+	// - Add a X-Request-ID for tracking both client and server side.
+	// - Add logging.
+	// - Accept compressed responses with zstandard and brotli, in addition to gzip.
+	// - Add Authorization Bearer header.
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	const apiKey = "secret-key-that-will-not-appear-in-logs!"
+
+	// Now any request will be logged, authenticated and compressed, including POST request.
+	http.DefaultClient.Transport = &roundtrippers.RequestID{
+		Transport: &roundtrippers.PostCompressed{
+			Encoding: "gzip",
+			Transport: &roundtrippers.AcceptCompressed{
+				Transport: &roundtrippers.Log{
+					L: logger,
+					Transport: &roundtrippers.Header{
+						Header:    http.Header{"Authorization": []string{"Bearer " + apiKey}},
+						Transport: http.DefaultTransport,
+					},
+				},
+			},
+		},
 	}
 
 	// Now, any POST request will be compressed too!
-	_, _ = http.Post("...", "application/json", strings.NewReader("{}"))
+	resp, err := http.Post(ts.URL, "text/plain", strings.NewReader("hello"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	resp.Body.Close()
+	fmt.Printf("POST: %s\n", string(b))
 }
 
 func acceptCompressed(r *http.Request, want string) bool {
@@ -282,6 +366,51 @@ func ExampleLog() {
 	// level=INFO msg=http status=200 Content-Encoding="" Content-Length=7 Content-Type="text/plain; charset=utf-8"
 	// level=INFO msg=http size=7 err=<nil>
 	// Response: "Working"
+}
+
+func ExamplePostCompressed_gzip() {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if ce := r.Header.Get("Content-Encoding"); ce != "gzip" {
+			http.Error(w, "sorry, I only read gzip", http.StatusBadRequest)
+			return
+		}
+		gz, err := gzip.NewReader(r.Body)
+		if err != nil {
+			http.Error(w, "error: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		b, err := io.ReadAll(gz)
+		if err != nil {
+			http.Error(w, "error: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err = gz.Close(); err != nil {
+			http.Error(w, "error: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if s := string(b); s != "hello" {
+			http.Error(w, fmt.Sprintf("want \"hello\", got %q", s), http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("world"))
+	}))
+	defer ts.Close()
+	c := http.Client{Transport: &roundtrippers.PostCompressed{Transport: http.DefaultTransport, Encoding: "gzip"}}
+	resp, err := c.Post(ts.URL, "text/plain", strings.NewReader("hello"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err = resp.Body.Close(); err != nil {
+		log.Fatal(err)
+	}
+	if s := string(b); s != "world" {
+		log.Fatalf("want \"world\", got %q", s)
+	}
 }
 
 func ExampleRequestID() {

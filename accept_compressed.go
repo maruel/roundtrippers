@@ -34,6 +34,7 @@ func (a *AcceptCompressed) RoundTrip(req *http.Request) (*http.Response, error) 
 		case "br":
 			resp.Body = &body{r: brotli.NewReader(resp.Body), c: []io.Closer{resp.Body}}
 			resp.Header.Del("Content-Encoding")
+			resp.Header.Del("Content-Length")
 			resp.ContentLength = -1
 			resp.Uncompressed = true
 		case "gzip":
@@ -44,6 +45,7 @@ func (a *AcceptCompressed) RoundTrip(req *http.Request) (*http.Response, error) 
 			}
 			resp.Body = &body{r: gz, c: []io.Closer{resp.Body, gz}}
 			resp.Header.Del("Content-Encoding")
+			resp.Header.Del("Content-Length")
 			resp.ContentLength = -1
 			resp.Uncompressed = true
 		case "zstd":
@@ -54,6 +56,7 @@ func (a *AcceptCompressed) RoundTrip(req *http.Request) (*http.Response, error) 
 			}
 			resp.Body = &body{r: zs, c: []io.Closer{resp.Body, &adapter{zs}}}
 			resp.Header.Del("Content-Encoding")
+			resp.Header.Del("Content-Length")
 			resp.ContentLength = -1
 			resp.Uncompressed = true
 		case "", "identity":
