@@ -13,7 +13,7 @@ http.Client.
 - 🚀 [AcceptCompressed](https://pkg.go.dev/github.com/maruel/roundtrippers#AcceptCompressed)
   adds support for Zstandard and Brotli for download.
 - 🚀 [PostCompressed](https://pkg.go.dev/github.com/maruel/roundtrippers#PostCompressed)
-  transparently compresses POST body.
+  transparently compresses POST body. Reduce your egress bandwidth. 💰
 - 🗒 [Header](https://pkg.go.dev/github.com/maruel/roundtrippers#Header) adds HTTP
   headers to all requests, e.g. `User-Agent` or `Authorization`. It is very
   useful when recording with
@@ -31,7 +31,15 @@ http.Client.
 
 ## Usage
 
-Improve GET requests. Try this example in the [Go Playground](https://go.dev/play/p/rjcHtNNoHCa) ✨
+### Baseline
+
+Make all HTTP request in the current program:
+- Add a `X-Request-ID` for tracking both client and server side.
+- Add logging to slog.
+- Accept compressed responses with zstandard and brotli, in addition to gzip.
+- Add Authorization Bearer header that is **never logged**.
+
+Try this example in the [Go Playground](https://go.dev/play/p/rjcHtNNoHCa) ✨
 
 ```go
 package main
@@ -66,12 +74,6 @@ func main() {
 	}))
 	defer ts.Close()
 
-	// Make all HTTP request in the current program:
-	// - Add a X-Request-ID for tracking both client and server side.
-	// - Add logging.
-	// - Accept compressed responses with zstandard and brotli, in addition to gzip.
-	// - Add Authorization Bearer header.
-
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	const apiKey = "secret-key-that-will-not-appear-in-logs!"
@@ -102,7 +104,15 @@ func main() {
 }
 ```
 
-Improve POST requests. Try this example in the [Go Playground](https://go.dev/play/p/zDt9UFObWom) ✨
+### Compressed POST
+
+Save on egress bandwidth! 💰
+
+Similar to the previous example with the added twist of compressed POST! This
+is useful for advanced web servers supporting compressed POST (e.g. Google's)
+to save on egress bandwidth.
+
+Try this example in the [Go Playground](https://go.dev/play/p/zDt9UFObWom) ✨
 
 ```go
 package main
@@ -149,12 +159,6 @@ func main() {
 		_, _ = w.Write([]byte("world"))
 	}))
 	defer ts.Close()
-
-	// Make all HTTP request in the current program:
-	// - Add a X-Request-ID for tracking both client and server side.
-	// - Add logging.
-	// - Accept compressed responses with zstandard and brotli, in addition to gzip.
-	// - Add Authorization Bearer header.
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
