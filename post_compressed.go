@@ -117,7 +117,7 @@ func (p *PostCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("invalid Encoding value: %q", p.Encoding)
 	}
 	req.Body = r
-	// TODO: Soon.
+	// The standard library always unset GetBody when calling RoundTrip(). Zap it in case this changes in the future.
 	req.GetBody = nil
 	req.ContentLength = -1
 	req.Header.Del("Content-Length")

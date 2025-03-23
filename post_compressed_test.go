@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/andybalholm/brotli"
@@ -173,5 +174,66 @@ func TestClient_Post_zstd(t *testing.T) {
 	}
 	if s := string(b); s != "world" {
 		t.Fatalf("want \"world\", got %q", s)
+	}
+}
+
+func TestClient_Post_redirect(t *testing.T) {
+	// Ensures GetBody works.
+	var count atomic.Int64
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// First return a 307, then succeed.
+		v := count.Add(1)
+		t.Logf("%s: %d", r.Method, v)
+		if v == 1 {
+			http.Redirect(w, r, r.URL.String(), http.StatusTemporaryRedirect)
+			return
+		}
+		if ce := r.Header.Get("Content-Encoding"); ce != "zstd" {
+			t.Error(ce)
+			return
+		}
+		zs, err := zstd.NewReader(r.Body)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		b, err := io.ReadAll(zs)
+		if err != nil {
+			t.Error(err, b)
+			return
+		}
+		zs.Close()
+		if s := string(b); s != "hello" {
+			t.Errorf("want \"hello\", got %q", s)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("world"))
+	}))
+	defer ts.Close()
+	c := http.Client{Transport: &roundtrippers.PostCompressed{Transport: http.DefaultTransport, Encoding: "zstd"}}
+	req, err := http.NewRequestWithContext(t.Context(), "POST", ts.URL, strings.NewReader("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.GetBody == nil {
+		t.Fatal("expected stdlib to set GetBody automatically")
+	}
+	resp, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = resp.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if s := string(b); s != "world" {
+		t.Fatalf("want \"world\", got %q", s)
+	}
+	if v := count.Load(); v != 2 {
+		t.Fatalf("expected 2 requests, got %d", v)
 	}
 }
