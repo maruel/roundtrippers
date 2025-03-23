@@ -7,6 +7,27 @@ augment your http.Client
 [![codecov](https://codecov.io/gh/maruel/roundtrippers/graph/badge.svg?token=EMMCJD4TG4)](https://codecov.io/gh/maruel/roundtrippers)
 
 
+## Features
+
+- [AcceptCompressed](https://pkg.go.dev/github.com/maruel/roundtrippers#AcceptCompressed)
+  adds support for Zstandard and Brotli for download.
+- [Capture](https://pkg.go.dev/github.com/maruel/roundtrippers#Capture) sends
+  all the requests to a channel for inspection.
+- [Header](https://pkg.go.dev/github.com/maruel/roundtrippers#Header) adds HTTP
+  headers to all requests, e.g. `User-Agent` or `Authorization`. It is very
+  useful when recording with
+  [go-vcr](https://pkg.go.dev/gopkg.in/dnaeon/go-vcr.v4/pkg/recorder) and you
+  don't want the `Authorization` bearer to be in the replay.
+- [Log](https://pkg.go.dev/github.com/maruel/roundtrippers#Log) logs all
+  requests to the [slog.Logger](https://pkg.go.dev/log/slog#Logger) of your
+  choice.
+- [PostCompressed](https://pkg.go.dev/github.com/maruel/roundtrippers#PostCompressed)
+  transparently compresses POST body.
+- [RequestID](https://pkg.go.dev/github.com/maruel/roundtrippers#RequestID)
+  adds a unique `X-Request-ID` to every request for logging and client-server
+  side tracking.
+
+
 ## Usage
 
 ```go

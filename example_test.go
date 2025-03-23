@@ -229,8 +229,8 @@ func ExampleHeader() {
 	resp.Header.Add("Test-Remove", "will be removed")
 	resp.Header.Add("Test-Reset", "will be reset")
 	resp.Header.Add("Test-Add", "will be kept")
-	if resp == nil || err != nil {
-		log.Fatal(resp, err)
+	if err != nil {
+		log.Fatal(err)
 	}
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {

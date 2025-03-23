@@ -22,6 +22,11 @@ type PostCompressed struct {
 	//
 	// Warning ⚠: compressing POST content is not supported on most servers.
 	Encoding string
+	// Level is the compression level.
+	// - "br" uses values between 1 and 11. If unset, defaults to 3.
+	// - "gzip" uses values between 1 and 9. If unset, defaults to 3.
+	// - "zstd"  uses values between 1 and 4. If unset, defaults to 2.
+	Level int
 
 	_ struct{}
 }
@@ -37,7 +42,11 @@ func (p *PostCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 	case "gzip":
 		go func() {
 			// Use a fast compression level.
-			gz, err := gzip.NewWriterLevel(w, 3)
+			l := p.Level
+			if l == 0 {
+				l = 3
+			}
+			gz, err := gzip.NewWriterLevel(w, l)
 			if err != nil {
 				_ = oldBody.Close()
 				_ = w.CloseWithError(err)
@@ -59,7 +68,11 @@ func (p *PostCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 	case "br":
 		go func() {
 			// Use a fast compression level.
-			br := brotli.NewWriterLevel(w, 3)
+			l := p.Level
+			if l == 0 {
+				l = 3
+			}
+			br := brotli.NewWriterLevel(w, l)
 			_, err := io.Copy(br, oldBody)
 			if err2 := oldBody.Close(); err == nil {
 				err = err2
@@ -75,7 +88,11 @@ func (p *PostCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 		}()
 	case "zstd":
 		go func() {
-			zs, err := zstd.NewWriter(w)
+			l := zstd.EncoderLevel(p.Level)
+			if l == 0 {
+				l = zstd.SpeedFastest
+			}
+			zs, err := zstd.NewWriter(w, zstd.WithEncoderLevel(l))
 			if err != nil {
 				_ = oldBody.Close()
 				_ = w.CloseWithError(err)
@@ -100,6 +117,7 @@ func (p *PostCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("invalid Encoding value: %q", p.Encoding)
 	}
 	req.Body = r
+	// TODO: Soon.
 	req.GetBody = nil
 	req.ContentLength = -1
 	req.Header.Del("Content-Length")
