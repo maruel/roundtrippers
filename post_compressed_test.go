@@ -18,21 +18,21 @@ import (
 	"github.com/maruel/roundtrippers"
 )
 
-func TestClient_Post_error_compress_bad(t *testing.T) {
+func TestPostCompressed_error_compress_bad(t *testing.T) {
 	c := http.Client{Transport: &roundtrippers.PostCompressed{Transport: http.DefaultTransport, Encoding: "bad"}}
 	if _, err := c.Post("http://127.0.0.1:0", "text/plain", strings.NewReader("hello")); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestClient_Post_error_compress_missing(t *testing.T) {
+func TestPostCompressed_error_compress_missing(t *testing.T) {
 	c := http.Client{Transport: &roundtrippers.PostCompressed{Transport: http.DefaultTransport, Encoding: ""}}
 	if _, err := c.Post("http://127.0.0.1:0", "text/plain", strings.NewReader("hello")); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestClient_Post_get(t *testing.T) {
+func TestPostCompressed_get(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("world"))
 	}))
@@ -54,7 +54,7 @@ func TestClient_Post_get(t *testing.T) {
 	}
 }
 
-func TestClient_Post_gzip(t *testing.T) {
+func TestPostCompressed_gzip(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if ce := r.Header.Get("Content-Encoding"); ce != "gzip" {
 			t.Error(ce)
@@ -98,7 +98,7 @@ func TestClient_Post_gzip(t *testing.T) {
 	}
 }
 
-func TestClient_Post_br(t *testing.T) {
+func TestPostCompressed_br(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if ce := r.Header.Get("Content-Encoding"); ce != "br" {
 			t.Error(ce)
@@ -135,7 +135,7 @@ func TestClient_Post_br(t *testing.T) {
 	}
 }
 
-func TestClient_Post_zstd(t *testing.T) {
+func TestPostCompressed_zstd(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if ce := r.Header.Get("Content-Encoding"); ce != "zstd" {
 			t.Error(ce)
@@ -177,7 +177,7 @@ func TestClient_Post_zstd(t *testing.T) {
 	}
 }
 
-func TestClient_Post_redirect(t *testing.T) {
+func TestPostCompressed_redirect(t *testing.T) {
 	// Ensures GetBody works.
 	var count atomic.Int64
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -235,5 +235,12 @@ func TestClient_Post_redirect(t *testing.T) {
 	}
 	if v := count.Load(); v != 2 {
 		t.Fatalf("expected 2 requests, got %d", v)
+	}
+}
+
+func TestPostCompressed_Unwrap(t *testing.T) {
+	var r http.RoundTripper = &roundtrippers.PostCompressed{Transport: http.DefaultTransport}
+	if r.(roundtrippers.Unwrap).Unwrap() != http.DefaultTransport {
+		t.Fatal("unexpected")
 	}
 }

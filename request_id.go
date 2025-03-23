@@ -21,11 +21,18 @@ type RequestID struct {
 	_ struct{}
 }
 
+// RoundTrip implements http.RoundTripper.
 func (r *RequestID) RoundTrip(req *http.Request) (*http.Response, error) {
 	req = req.Clone(req.Context())
 	req.Header.Set("X-Request-ID", genID())
 	return r.Transport.RoundTrip(req)
 }
+
+func (r *RequestID) Unwrap() http.RoundTripper {
+	return r.Transport
+}
+
+//
 
 func genID() string {
 	var bytes [12]byte

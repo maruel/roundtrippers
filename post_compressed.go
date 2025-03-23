@@ -31,6 +31,7 @@ type PostCompressed struct {
 	_ struct{}
 }
 
+// RoundTrip implements http.RoundTripper.
 func (p *PostCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Body == nil || req.Header.Get("Content-Encoding") != "" {
 		return p.Transport.RoundTrip(req)
@@ -123,4 +124,8 @@ func (p *PostCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Header.Del("Content-Length")
 	req.Header.Set("Content-Encoding", p.Encoding)
 	return p.Transport.RoundTrip(req)
+}
+
+func (p *PostCompressed) Unwrap() http.RoundTripper {
+	return p.Transport
 }

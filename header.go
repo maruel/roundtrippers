@@ -23,6 +23,7 @@ type Header struct {
 	_ struct{}
 }
 
+// RoundTrip implements http.RoundTripper.
 func (h *Header) RoundTrip(req *http.Request) (*http.Response, error) {
 	req = req.Clone(req.Context())
 	for k, v := range h.Header {
@@ -38,4 +39,8 @@ func (h *Header) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 	}
 	return h.Transport.RoundTrip(req)
+}
+
+func (h *Header) Unwrap() http.RoundTripper {
+	return h.Transport
 }

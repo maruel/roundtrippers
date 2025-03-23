@@ -24,6 +24,7 @@ type Log struct {
 	_ struct{}
 }
 
+// RoundTrip implements http.RoundTripper.
 func (l *Log) RoundTrip(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
 	rid := req.Header.Get("X-Request-ID")
@@ -44,6 +45,12 @@ func (l *Log) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	return resp, err
 }
+
+func (l *Log) Unwrap() http.RoundTripper {
+	return l.Transport
+}
+
+//
 
 type logBody struct {
 	body  io.ReadCloser

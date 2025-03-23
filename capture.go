@@ -27,6 +27,7 @@ type Capture struct {
 	_ struct{}
 }
 
+// RoundTrip implements http.RoundTripper.
 func (c *Capture) RoundTrip(req *http.Request) (*http.Response, error) {
 	resp, err := c.Transport.RoundTrip(req)
 	if resp != nil {
@@ -45,6 +46,12 @@ func (c *Capture) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
+func (c *Capture) Unwrap() http.RoundTripper {
+	return c.Transport
+}
+
+//
+
 type captureBody struct {
 	body    io.ReadCloser
 	resp    *http.Response
@@ -62,9 +69,9 @@ func (c *captureBody) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func (l *captureBody) Close() error {
-	err := l.body.Close()
-	l.resp.Body = io.NopCloser(l.content)
-	l.c <- Record{Request: l.resp.Request, Response: l.resp, Err: l.err}
+func (c *captureBody) Close() error {
+	err := c.body.Close()
+	c.resp.Body = io.NopCloser(c.content)
+	c.c <- Record{Request: c.resp.Request, Response: c.resp, Err: c.err}
 	return err
 }

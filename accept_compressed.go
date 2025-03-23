@@ -22,6 +22,7 @@ type AcceptCompressed struct {
 	_ struct{}
 }
 
+// RoundTrip implements http.RoundTripper.
 func (a *AcceptCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 	// The standard library includes gzip. Disable transparent compression and
 	// add br and zstd. Tell the server we prefer zstd.
@@ -67,6 +68,12 @@ func (a *AcceptCompressed) RoundTrip(req *http.Request) (*http.Response, error) 
 	}
 	return resp, err
 }
+
+func (a *AcceptCompressed) Unwrap() http.RoundTripper {
+	return a.Transport
+}
+
+//
 
 type adapter struct {
 	zs *zstd.Decoder
