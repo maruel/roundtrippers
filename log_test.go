@@ -56,7 +56,7 @@ func TestLog_RoundTrip_error_short(t *testing.T) {
 
 func TestLog_Unwrap(t *testing.T) {
 	var r http.RoundTripper = &roundtrippers.Log{Transport: http.DefaultTransport}
-	if r.(roundtrippers.Unwrap).Unwrap() != http.DefaultTransport {
+	if r.(roundtrippers.Unwrapper).Unwrap() != http.DefaultTransport {
 		t.Fatal("unexpected")
 	}
 }

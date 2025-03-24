@@ -13,7 +13,7 @@ import (
 
 func TestHeader_Unwrap(t *testing.T) {
 	var r http.RoundTripper = &roundtrippers.Header{Transport: http.DefaultTransport}
-	if r.(roundtrippers.Unwrap).Unwrap() != http.DefaultTransport {
+	if r.(roundtrippers.Unwrapper).Unwrap() != http.DefaultTransport {
 		t.Fatal("unexpected")
 	}
 }

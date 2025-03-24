@@ -49,7 +49,7 @@ func TestCapture_RoundTrip_error_short(t *testing.T) {
 
 func TestCapture_Unwrap(t *testing.T) {
 	var r http.RoundTripper = &roundtrippers.Capture{Transport: http.DefaultTransport}
-	if r.(roundtrippers.Unwrap).Unwrap() != http.DefaultTransport {
+	if r.(roundtrippers.Unwrapper).Unwrap() != http.DefaultTransport {
 		t.Fatal("unexpected")
 	}
 }

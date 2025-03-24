@@ -99,7 +99,7 @@ func TestAcceptCompressed_error_bad(t *testing.T) {
 
 func TestAcceptCompressed_Unwrap(t *testing.T) {
 	var r http.RoundTripper = &roundtrippers.AcceptCompressed{Transport: http.DefaultTransport}
-	if r.(roundtrippers.Unwrap).Unwrap() != http.DefaultTransport {
+	if r.(roundtrippers.Unwrapper).Unwrap() != http.DefaultTransport {
 		t.Fatal("unexpected")
 	}
 }
