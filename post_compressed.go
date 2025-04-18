@@ -36,15 +36,41 @@ func (p *PostCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Body == nil || req.Header.Get("Content-Encoding") != "" {
 		return p.Transport.RoundTrip(req)
 	}
-	req = req.Clone(req.Context())
-	oldBody := req.Body
+	req2 := req.Clone(req.Context())
+	var err error
+	if req2.Body, err = p.getBody(req.Body); err != nil {
+		return nil, err
+	}
+	if req.GetBody != nil {
+		req2.GetBody = func() (io.ReadCloser, error) {
+			b2, err2 := req.GetBody()
+			if err2 != nil {
+				return b2, err2
+			}
+			return p.getBody(b2)
+		}
+	} else {
+		// See https://github.com/golang/go/issues/73439
+		req2.GetBody = nil
+	}
+	req2.ContentLength = -1
+	req2.Header.Del("Content-Length")
+	req2.Header.Set("Content-Encoding", p.Encoding)
+	return p.Transport.RoundTrip(req2)
+}
+
+func (p *PostCompressed) Unwrap() http.RoundTripper {
+	return p.Transport
+}
+
+func (p *PostCompressed) getBody(oldBody io.ReadCloser) (io.ReadCloser, error) {
 	r, w := io.Pipe()
 	switch p.Encoding {
 	case "gzip":
 		go func() {
-			// Use a fast compression level.
 			l := p.Level
 			if l == 0 {
+				// Use a fast compression level.
 				l = 3
 			}
 			gz, err := gzip.NewWriterLevel(w, l)
@@ -66,11 +92,12 @@ func (p *PostCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 			}
 			_ = w.Close()
 		}()
+		return r, nil
 	case "br":
 		go func() {
-			// Use a fast compression level.
 			l := p.Level
 			if l == 0 {
+				// Use a fast compression level.
 				l = 3
 			}
 			br := brotli.NewWriterLevel(w, l)
@@ -87,10 +114,12 @@ func (p *PostCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 			}
 			_ = w.Close()
 		}()
+		return r, nil
 	case "zstd":
 		go func() {
 			l := zstd.EncoderLevel(p.Level)
 			if l == 0 {
+				// Use a fast compression level.
 				l = zstd.SpeedFastest
 			}
 			zs, err := zstd.NewWriter(w, zstd.WithEncoderLevel(l))
@@ -112,20 +141,9 @@ func (p *PostCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 			}
 			_ = w.Close()
 		}()
+		return r, nil
 	case "":
 		return nil, errors.New("do not use PostCompressed without Encoding")
-	default:
-		return nil, fmt.Errorf("invalid Encoding value: %q", p.Encoding)
 	}
-	req.Body = r
-	// The standard library always unset GetBody when calling RoundTrip(). Zap it in case this changes in the future.
-	req.GetBody = nil
-	req.ContentLength = -1
-	req.Header.Del("Content-Length")
-	req.Header.Set("Content-Encoding", p.Encoding)
-	return p.Transport.RoundTrip(req)
-}
-
-func (p *PostCompressed) Unwrap() http.RoundTripper {
-	return p.Transport
+	return nil, fmt.Errorf("invalid Encoding value: %q", p.Encoding)
 }
