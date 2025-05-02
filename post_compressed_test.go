@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -100,16 +99,25 @@ func TestPostCompressed(t *testing.T) {
 
 func TestPostCompressed_redirect(t *testing.T) {
 	data := []struct {
+		name       string
 		r          io.Reader
 		hasGetBody bool
 	}{
 		// This will set GetBody due to type assertion in http.NewRequestWithContext().
-		{strings.NewReader("hello"), true},
+		{
+			"WithGetBody",
+			strings.NewReader("hello"),
+			true,
+		},
 		// This will not set GetBody because it's a custom type.
-		{&reader{"hello"}, false},
+		{
+			"WithoutGetBody",
+			&reader{"hello"},
+			false,
+		},
 	}
-	for i, line := range data {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+	for _, line := range data {
+		t.Run(line.name, func(t *testing.T) {
 			// Ensures GetBody works.
 			var count atomic.Int64
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

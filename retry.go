@@ -5,7 +5,6 @@
 package roundtrippers
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"io"
@@ -33,30 +32,17 @@ func (r *Retry) RoundTrip(req *http.Request) (*http.Response, error) {
 		policy = &DefaultRetryPolicy
 	}
 	start := time.Now()
-	var in []byte
-	if req.Body != nil && req.GetBody == nil {
-		// See https://github.com/golang/go/issues/73439
-		var err error
-		if in, err = io.ReadAll(req.Body); err != nil {
-			return nil, err
-		}
-		req.Body = io.NopCloser(bytes.NewBuffer(in))
-		req.GetBody = func() (io.ReadCloser, error) {
-			return io.NopCloser(bytes.NewBuffer(in)), nil
-		}
+	var err error
+	if req, err = cloneRequestWithBody(req); err != nil {
+		return nil, err
 	}
 	resp, err := r.Transport.RoundTrip(req)
 	ctx := req.Context()
 	for try := 0; policy.ShouldRetry(ctx, start, try, err, resp); try++ {
-		if req.Body != nil {
-			if req.GetBody != nil {
-				var err2 error
-				if req.Body, err2 = req.GetBody(); err2 != nil {
-					return resp, err2
-				}
-			} else {
-				// See https://github.com/golang/go/issues/73439
-				req.Body = io.NopCloser(bytes.NewBuffer(in))
+		if req.GetBody != nil {
+			var err2 error
+			if req.Body, err2 = req.GetBody(); err2 != nil {
+				return resp, err2
 			}
 		}
 		// "Retry-After" is generally sent along HTTP 429. If the server then this header, use this instead of our

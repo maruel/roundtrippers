@@ -34,36 +34,35 @@ type PostCompressed struct {
 // RoundTrip implements http.RoundTripper.
 func (p *PostCompressed) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Body == nil || req.Header.Get("Content-Encoding") != "" {
+		// Nothing to compress or it is already encoded.
 		return p.Transport.RoundTrip(req)
 	}
-	req2 := req.Clone(req.Context())
 	var err error
-	if req2.Body, err = p.getBody(req.Body); err != nil {
+	if req, err = cloneRequestWithBody(req); err != nil {
 		return nil, err
 	}
-	if req.GetBody != nil {
-		req2.GetBody = func() (io.ReadCloser, error) {
-			b2, err2 := req.GetBody()
-			if err2 != nil {
-				return b2, err2
-			}
-			return p.getBody(b2)
-		}
-	} else {
-		// See https://github.com/golang/go/issues/73439
-		req2.GetBody = nil
+	oldGetBody := req.GetBody
+	if req.Body, err = p.getCompressedBody(req.Body); err != nil {
+		return nil, err
 	}
-	req2.ContentLength = -1
-	req2.Header.Del("Content-Length")
-	req2.Header.Set("Content-Encoding", p.Encoding)
-	return p.Transport.RoundTrip(req2)
+	req.GetBody = func() (io.ReadCloser, error) {
+		b2, err2 := oldGetBody()
+		if err2 != nil {
+			return b2, err2
+		}
+		return p.getCompressedBody(b2)
+	}
+	req.ContentLength = -1
+	req.Header.Del("Content-Length")
+	req.Header.Set("Content-Encoding", p.Encoding)
+	return p.Transport.RoundTrip(req)
 }
 
 func (p *PostCompressed) Unwrap() http.RoundTripper {
 	return p.Transport
 }
 
-func (p *PostCompressed) getBody(oldBody io.ReadCloser) (io.ReadCloser, error) {
+func (p *PostCompressed) getCompressedBody(oldBody io.ReadCloser) (io.ReadCloser, error) {
 	r, w := io.Pipe()
 	switch p.Encoding {
 	case "gzip":
