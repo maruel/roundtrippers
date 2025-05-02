@@ -39,22 +39,30 @@ func Example_gET() {
 	defer ts.Close()
 
 	// Make all HTTP request in the current program:
+	// - Retry on 429 and 5xx.
 	// - Add a X-Request-ID for tracking both client and server side.
-	// - Add logging.
 	// - Accept compressed responses with zstandard and brotli, in addition to gzip.
+	// - Add logging.
 	// - Add Authorization Bearer header.
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	const apiKey = "secret-key-that-will-not-appear-in-logs!"
 
-	http.DefaultClient.Transport = &roundtrippers.RequestID{
-		Transport: &roundtrippers.AcceptCompressed{
-			Transport: &roundtrippers.Log{
-				L: logger,
-				Transport: &roundtrippers.Header{
-					Header:    http.Header{"Authorization": []string{"Bearer " + apiKey}},
-					Transport: http.DefaultTransport,
+	// Retry HTTP 429, 5xx.
+	http.DefaultClient.Transport = &roundtrippers.Retry{
+		// Add a unique X-Request-ID HTTP header to every requests.
+		Transport: &roundtrippers.RequestID{
+			// Accept brotli and zstd response in addition to gzip.
+			Transport: &roundtrippers.AcceptCompressed{
+				// Log requests via slog.
+				Transport: &roundtrippers.Log{
+					L: logger,
+					// Authenticate.
+					Transport: &roundtrippers.Header{
+						Header:    http.Header{"Authorization": []string{"Bearer " + apiKey}},
+						Transport: http.DefaultTransport,
+					},
 				},
 			},
 		},
@@ -103,32 +111,41 @@ func Example_pOST() {
 	defer ts.Close()
 
 	// Make all HTTP request in the current program:
+	// - Retry on 429 and 5xx.
 	// - Add a X-Request-ID for tracking both client and server side.
-	// - Add logging.
+	// - Compress POST body with gzip.
 	// - Accept compressed responses with zstandard and brotli, in addition to gzip.
+	// - Add logging.
 	// - Add Authorization Bearer header.
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	const apiKey = "secret-key-that-will-not-appear-in-logs!"
 
-	// Now any request will be logged, authenticated and compressed, including POST request.
-	http.DefaultClient.Transport = &roundtrippers.RequestID{
-		Transport: &roundtrippers.PostCompressed{
-			Encoding: "gzip",
-			Transport: &roundtrippers.AcceptCompressed{
-				Transport: &roundtrippers.Log{
-					L: logger,
-					Transport: &roundtrippers.Header{
-						Header:    http.Header{"Authorization": []string{"Bearer " + apiKey}},
-						Transport: http.DefaultTransport,
+	// Retry HTTP 429, 5xx.
+	http.DefaultClient.Transport = &roundtrippers.Retry{
+		// Add a unique X-Request-ID HTTP header to every requests.
+		Transport: &roundtrippers.RequestID{
+			// Compress POST body with gzip
+			Transport: &roundtrippers.PostCompressed{
+				Encoding: "gzip",
+				// Accept brotli and zstd response in addition to gzip.
+				Transport: &roundtrippers.AcceptCompressed{
+					// Log requests via slog.
+					Transport: &roundtrippers.Log{
+						L: logger,
+						// Authenticate.
+						Transport: &roundtrippers.Header{
+							Header:    http.Header{"Authorization": []string{"Bearer " + apiKey}},
+							Transport: http.DefaultTransport,
+						},
 					},
 				},
 			},
 		},
 	}
 
-	// Now, any POST request will be compressed too!
+	// Now any request will be logged, authenticated and compressed, including POST request.
 	resp, err := http.Post(ts.URL, "text/plain", strings.NewReader("hello"))
 	if err != nil {
 		log.Fatal(err)
