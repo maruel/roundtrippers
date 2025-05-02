@@ -93,10 +93,12 @@ func (e *ExponentialBackoff) ShouldRetry(ctx context.Context, start time.Time, t
 	if try >= e.MaxTryCount || time.Since(start) > e.MaxDuration || ctx.Err() != nil || !isRetriableError(err) || resp == nil {
 		return false
 	}
-	return resp.StatusCode == http.StatusTooManyRequests || // 429
-		resp.StatusCode == http.StatusBadGateway || // 502
-		resp.StatusCode == http.StatusServiceUnavailable || // 503
-		resp.StatusCode == http.StatusGatewayTimeout // 504
+	code := resp.StatusCode
+	return code == http.StatusTooManyRequests || // 429
+		code == http.StatusBadGateway || // 502
+		code == http.StatusServiceUnavailable || // 503
+		code == http.StatusGatewayTimeout || // 504
+		code == 529 // Non-standard code. See https://http.dev/529
 }
 
 func (e *ExponentialBackoff) Backoff(start time.Time, try int) time.Duration {
