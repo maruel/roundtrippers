@@ -253,9 +253,9 @@ func ExampleAcceptCompressed_zstd() {
 	// Response: "excellent"
 }
 
-func ExampleCapture() {
+func ExampleCapture_gET() {
 	// Example on how to hook into the HTTP client roundtripper to capture each HTTP
-	// request.
+	// response.
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("Working"))
 	}))
@@ -277,13 +277,58 @@ func ExampleCapture() {
 	}
 
 	// Print the captured request and response.
-	fmt.Printf("Response: %q\n", string(b))
+	fmt.Printf("Actual Response:   %q\n", string(b))
 	record := <-ch
-	fmt.Printf("Recorded: %q\n", record.Response.Body)
+	fmt.Printf("Recorded Response: %q\n", record.Response.Body)
 
 	// Output:
-	// Response: "Working"
-	// Recorded: {"Working"}
+	// Actual Response:   "Working"
+	// Recorded Response: {"Working"}
+}
+
+func ExampleCapture_pOST() {
+	// Example on how to hook into the HTTP client roundtripper to capture each HTTP
+	// request, including the POST body.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		_ = r.Body.Close()
+		_, _ = w.Write([]byte("Working"))
+	}))
+	defer ts.Close()
+
+	ch := make(chan roundtrippers.Record, 1)
+	t := &roundtrippers.Capture{Transport: http.DefaultTransport, C: ch}
+	c := &http.Client{Transport: t}
+	resp, err := c.Post(ts.URL, "text/plain", strings.NewReader("What are you doing?"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err = resp.Body.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	// Print the captured request and response.
+	fmt.Printf("Actual Response:   %q\n", string(b))
+	record := <-ch
+	reqBodyReader, err := record.Request.GetBody()
+	if err != nil {
+		log.Fatal(err)
+	}
+	reqBody, err := io.ReadAll(reqBodyReader)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Recorded Request:  %q\n", reqBody)
+	fmt.Printf("Recorded Response: %q\n", record.Response.Body)
+
+	// Output:
+	// Actual Response:   "Working"
+	// Recorded Request:  "What are you doing?"
+	// Recorded Response: {"Working"}
 }
 
 func ExampleHeader() {

@@ -12,9 +12,11 @@ import (
 
 // Record is a captured HTTP request and response by the Capture http.RoundTripper.
 type Record struct {
+	// Request is guaranteed to have GetBody set is Body was set. Use this to read the POST's body.
 	Request  *http.Request
 	Response *http.Response
-	Err      error
+	// Err is the error returned by the http.RoundTripper.Do(), if any.
+	Err error
 
 	_ struct{}
 }
@@ -29,6 +31,13 @@ type Capture struct {
 
 // RoundTrip implements http.RoundTripper.
 func (c *Capture) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Ensures GetBody is set, so the user can read this.
+	if req.Body != nil {
+		var err error
+		if req, err = cloneRequestWithBody(req); err != nil {
+			return nil, err
+		}
+	}
 	resp, err := c.Transport.RoundTrip(req)
 	if resp != nil {
 		// Make a copy of the response.
