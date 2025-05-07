@@ -45,10 +45,15 @@ func (r *Retry) RoundTrip(req *http.Request) (*http.Response, error) {
 				return resp, err2
 			}
 		}
-		// "Retry-After" is generally sent along HTTP 429. If the server then this header, use this instead of our
-		// backoff algorithm.
-		sleep, ok := parseRetryAfterHeader(resp.Header.Get("Retry-After"))
-		if !ok {
+		var sleep time.Duration
+		if resp != nil {
+			// "Retry-After" is generally sent along HTTP 429. If the server then this header, use this instead of our
+			// backoff algorithm.
+			ok := false
+			if sleep, ok = parseRetryAfterHeader(resp.Header.Get("Retry-After")); !ok {
+				sleep = policy.Backoff(start, try)
+			}
+		} else {
 			sleep = policy.Backoff(start, try)
 		}
 		select {
@@ -57,8 +62,10 @@ func (r *Retry) RoundTrip(req *http.Request) (*http.Response, error) {
 			return resp, err
 		case <-timeAfter(sleep):
 		}
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
+		if resp != nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
 		resp, err = r.Transport.RoundTrip(req)
 	}
 	return resp, err
@@ -90,7 +97,16 @@ var DefaultRetryPolicy = ExponentialBackoff{
 }
 
 func (e *ExponentialBackoff) ShouldRetry(ctx context.Context, start time.Time, try int, err error, resp *http.Response) bool {
-	if try >= e.MaxTryCount || time.Since(start) > e.MaxDuration || ctx.Err() != nil || !isRetriableError(err) || resp == nil {
+	if try >= e.MaxTryCount || time.Since(start) > e.MaxDuration || ctx.Err() != nil || isNotRetriableError(err) {
+		return false
+	}
+	if resp == nil {
+		/* TODO
+		// Seems to happen often with Google frontend.
+		if err != nil && http2StreamError.MatchString(err.Error()) {
+			return true
+		}
+		*/
 		return false
 	}
 	code := resp.StatusCode
@@ -107,19 +123,22 @@ func (e *ExponentialBackoff) Backoff(start time.Time, try int) time.Duration {
 
 //
 
+// List of regexes used to match errors returned by net/http. These are not typed specifically so we resort to
+// matching on the error string. This is not ideal.
 var (
 	// redirectsErrorRe matches the error returned by net/http when the configured number of redirects is
-	// exhausted. This error isn't typed specifically so we resort to matching on the error string.
+	// exhausted.
 	redirectsErrorRe = regexp.MustCompile(`stopped after \d+ redirects\z`)
 	// schemeErrorRe matches the error returned by net/http when the scheme specified in the URL is invalid.
-	// This error isn't typed specifically so we resort to matching on the error string.
 	schemeErrorRe = regexp.MustCompile(`unsupported protocol scheme`)
 	// invalidHeaderErrorRe matches the error returned by net/http when a request header or value is invalid.
-	// This error isn't typed specifically so we resort to matching on the error string.
 	invalidHeaderErrorRe = regexp.MustCompile(`invalid header`)
-	// notTrustedErrorRe matches the error returned by net/http when the TLS certificate is not trusted. This
-	// error isn't typed specifically so we resort to matching on the error string.
+	// notTrustedErrorRe matches the error returned by net/http when the TLS certificate is not trusted.
 	notTrustedErrorRe = regexp.MustCompile(`certificate is not trusted`)
+	/* TODO
+	// http2StreamError matches the error returned by net/http when a HTTP/2 stream is closed.
+	http2StreamError = regexp.MustCompile(`stream error: stream ID \d+; INTERNAL_ERROR; received from peer`)
+	*/
 )
 
 var timeAfter = time.After
@@ -137,14 +156,15 @@ func parseRetryAfterHeader(header string) (time.Duration, bool) {
 	return 0, false
 }
 
-func isRetriableError(err error) bool {
+// isNotRetriableError catch untyped errors that must not be retried.
+func isNotRetriableError(err error) bool {
 	if v, ok := err.(*url.Error); ok {
 		if _, ok := v.Err.(*tls.CertificateVerificationError); ok {
-			return false
+			return true
 		}
 		if s := v.Error(); redirectsErrorRe.MatchString(s) || schemeErrorRe.MatchString(s) || invalidHeaderErrorRe.MatchString(s) || notTrustedErrorRe.MatchString(s) {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
 }
