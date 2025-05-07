@@ -17,6 +17,15 @@ type Unwrapper interface {
 	Unwrap() http.RoundTripper
 }
 
+// Unwrap returns the root underlying transport if the RoundTripper implements Unwrapper.
+// Otherwise, it returns the RoundTripper itself.
+func Unwrap(rt http.RoundTripper) http.RoundTripper {
+	if unwrapper, ok := rt.(Unwrapper); ok {
+		return Unwrap(unwrapper.Unwrap())
+	}
+	return rt
+}
+
 // cloneRequestWithBody clones the request and ensures the http.Request has a GetBody if Body is set.
 func cloneRequestWithBody(req *http.Request) (*http.Request, error) {
 	req2 := req.Clone(req.Context())

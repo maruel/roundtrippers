@@ -45,6 +45,10 @@ func (r *Retry) RoundTrip(req *http.Request) (*http.Response, error) {
 				return resp, err2
 			}
 		}
+		// When retrying, close the connect to increases the odds of the retry succeeding.
+		if deep, ok := Unwrap(r.Transport).(*http.Transport); ok {
+			deep.CloseIdleConnections()
+		}
 		var sleep time.Duration
 		if resp != nil {
 			// "Retry-After" is generally sent along HTTP 429. If the server then this header, use this instead of our
@@ -101,12 +105,10 @@ func (e *ExponentialBackoff) ShouldRetry(ctx context.Context, start time.Time, t
 		return false
 	}
 	if resp == nil {
-		/* TODO
 		// Seems to happen often with Google frontend.
 		if err != nil && http2StreamError.MatchString(err.Error()) {
 			return true
 		}
-		*/
 		return false
 	}
 	code := resp.StatusCode
@@ -135,10 +137,8 @@ var (
 	invalidHeaderErrorRe = regexp.MustCompile(`invalid header`)
 	// notTrustedErrorRe matches the error returned by net/http when the TLS certificate is not trusted.
 	notTrustedErrorRe = regexp.MustCompile(`certificate is not trusted`)
-	/* TODO
 	// http2StreamError matches the error returned by net/http when a HTTP/2 stream is closed.
 	http2StreamError = regexp.MustCompile(`stream error: stream ID \d+; INTERNAL_ERROR; received from peer`)
-	*/
 )
 
 var timeAfter = time.After
