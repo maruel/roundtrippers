@@ -45,6 +45,7 @@ func (c *Capture) RoundTrip(req *http.Request) (*http.Response, error) {
 		*resp2 = *resp
 		resp.Body = &captureBody{
 			body:    resp.Body,
+			req:     req,
 			resp:    resp2,
 			c:       c.C,
 			content: &bytes.Buffer{},
@@ -63,6 +64,7 @@ func (c *Capture) Unwrap() http.RoundTripper {
 
 type captureBody struct {
 	body    io.ReadCloser
+	req     *http.Request
 	resp    *http.Response
 	c       chan<- Record
 	content *bytes.Buffer
@@ -81,6 +83,7 @@ func (c *captureBody) Read(p []byte) (int, error) {
 func (c *captureBody) Close() error {
 	err := c.body.Close()
 	c.resp.Body = io.NopCloser(c.content)
-	c.c <- Record{Request: c.resp.Request, Response: c.resp, Err: c.err}
+	// The Request object in the Response may be different from what we saved.
+	c.c <- Record{Request: c.req, Response: c.resp, Err: c.err}
 	return err
 }
