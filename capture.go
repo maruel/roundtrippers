@@ -32,7 +32,7 @@ type Capture struct {
 // RoundTrip implements http.RoundTripper.
 func (c *Capture) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Ensures GetBody is set, so the user can read this.
-	if req.Body != nil {
+	if req.Body != nil && req.Body != http.NoBody {
 		var err error
 		if req, err = cloneRequestWithBody(req); err != nil {
 			return nil, err

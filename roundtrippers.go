@@ -31,7 +31,7 @@ func cloneRequestWithBody(req *http.Request) (*http.Request, error) {
 	req2 := req.Clone(req.Context())
 	// See https://github.com/golang/go/issues/73439
 	req2.GetBody = req.GetBody
-	if req2.Body != nil && req2.GetBody == nil {
+	if req.Body != nil && req.Body != http.NoBody && req2.GetBody == nil {
 		in, err := io.ReadAll(req2.Body)
 		if err != nil {
 			return nil, err
