@@ -14,6 +14,7 @@ http.Client.
   adds support for Zstandard and Brotli for download.
 - 🚀 [PostCompressed](https://pkg.go.dev/github.com/maruel/roundtrippers#PostCompressed)
   transparently compresses POST body. Reduce your egress bandwidth. 💰
+- 🔄 [Retry](https://pkg.go.dev/github.com/maruel/roundtrippers#Retry) smartly retries on HTPP 429 and 5xx.
 - 🗒 [Header](https://pkg.go.dev/github.com/maruel/roundtrippers#Header) adds HTTP
   headers to all requests, e.g. `User-Agent` or `Authorization`. It is very
   useful when recording with
