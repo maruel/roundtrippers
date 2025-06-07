@@ -15,6 +15,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/andybalholm/brotli"
 	"github.com/klauspost/compress/zstd"
@@ -485,6 +486,47 @@ func ExampleRequestID() {
 	}))
 	defer ts.Close()
 	c := http.Client{Transport: &roundtrippers.RequestID{Transport: http.DefaultTransport}}
+	resp, err := c.Get(ts.URL)
+	if resp == nil || err != nil {
+		log.Fatal(resp, err)
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err = resp.Body.Close(); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Response: %q\n", string(b))
+	// Output:
+	// Response: "good"
+}
+
+func ExampleRetry() {
+	count := 0
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if count++; count < 3 {
+			http.Error(w, "slow down", http.StatusTooManyRequests)
+		} else {
+			_, _ = w.Write([]byte("good"))
+		}
+	}))
+	defer ts.Close()
+	c := http.Client{Transport: &roundtrippers.Retry{
+		Transport: http.DefaultTransport,
+		// Optionally set a custom policy instead of roundtrippers.DefaultRetryPolicy.
+		Policy: &roundtrippers.ExponentialBackoff{
+			MaxTryCount: 10,
+			MaxDuration: 60 * time.Second,
+			Exp:         1.5,
+		},
+		// Disable sleeping for unit tests with this trick:
+		TimeAfter: func(time.Duration) <-chan time.Time {
+			c := make(chan time.Time, 1)
+			c <- time.Now()
+			return c
+		},
+	}}
 	resp, err := c.Get(ts.URL)
 	if resp == nil || err != nil {
 		log.Fatal(resp, err)

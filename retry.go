@@ -23,6 +23,8 @@ type Retry struct {
 	//
 	// If unset, defaults to DefaultRetryPolicy.
 	Policy RetryPolicy
+	// TimeAfter can be hooked for unit tests to disable sleeping. It defaults to time.After().
+	TimeAfter func(d time.Duration) <-chan time.Time
 }
 
 // RoundTrip implements http.RoundTripper.
@@ -38,6 +40,10 @@ func (r *Retry) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	resp, err := r.Transport.RoundTrip(req)
 	ctx := req.Context()
+	timeAfter := r.TimeAfter
+	if timeAfter == nil {
+		timeAfter = time.After
+	}
 	for try := 0; policy.ShouldRetry(ctx, start, try, err, resp); try++ {
 		if req.GetBody != nil {
 			var err2 error
@@ -140,8 +146,6 @@ var (
 	// http2StreamError matches the error returned by net/http when a HTTP/2 stream is closed.
 	http2StreamError = regexp.MustCompile(`stream error: stream ID \d+; INTERNAL_ERROR; received from peer`)
 )
-
-var timeAfter = time.After
 
 func parseRetryAfterHeader(header string) (time.Duration, bool) {
 	if sleep, err := strconv.ParseInt(header, 10, 64); err == nil {

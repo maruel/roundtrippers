@@ -36,7 +36,14 @@ func TestRetry_get(t *testing.T) {
 		_, _ = w.Write([]byte("hi"))
 	}))
 	defer ts.Close()
-	c := http.Client{Transport: &Retry{Transport: http.DefaultTransport}}
+	c := http.Client{Transport: &Retry{
+		Transport: http.DefaultTransport,
+		TimeAfter: func(time.Duration) <-chan time.Time {
+			c := make(chan time.Time, 1)
+			c <- time.Now()
+			return c
+		},
+	}}
 	resp, err := c.Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +70,14 @@ func TestRetry_redirect_infinite(t *testing.T) {
 		http.Redirect(w, r, "/again", http.StatusTemporaryRedirect)
 	}))
 	defer ts.Close()
-	c := http.Client{Transport: &Retry{Transport: http.DefaultTransport}}
+	c := http.Client{Transport: &Retry{
+		Transport: http.DefaultTransport,
+		TimeAfter: func(time.Duration) <-chan time.Time {
+			c := make(chan time.Time, 1)
+			c <- time.Now()
+			return c
+		},
+	}}
 	resp, err := c.Get(ts.URL)
 	if err == nil {
 		t.Fatal("expected error")
@@ -85,7 +99,14 @@ func TestRetry_invalid_scheme(t *testing.T) {
 		http.Redirect(w, r, "foo://"+ts.Listener.Addr().String(), http.StatusTemporaryRedirect)
 	}))
 	defer ts.Close()
-	c := http.Client{Transport: &Retry{Transport: http.DefaultTransport}}
+	c := http.Client{Transport: &Retry{
+		Transport: http.DefaultTransport,
+		TimeAfter: func(time.Duration) <-chan time.Time {
+			c := make(chan time.Time, 1)
+			c <- time.Now()
+			return c
+		},
+	}}
 	resp, err := c.Get(ts.URL)
 	if resp != nil || err == nil {
 		t.Fatal(err)
@@ -109,7 +130,14 @@ func TestRetry_invalid_cert(t *testing.T) {
 		http.Redirect(w, r, ts2.URL, http.StatusTemporaryRedirect)
 	}))
 	defer ts1.Close()
-	c := http.Client{Transport: &Retry{Transport: http.DefaultTransport}}
+	c := http.Client{Transport: &Retry{
+		Transport: http.DefaultTransport,
+		TimeAfter: func(time.Duration) <-chan time.Time {
+			c := make(chan time.Time, 1)
+			c <- time.Now()
+			return c
+		},
+	}}
 	resp, err := c.Get(ts1.URL)
 	if resp != nil || err == nil {
 		t.Fatal(err)
@@ -137,7 +165,14 @@ func TestRetry_invalid_protocol(t *testing.T) {
 		c.Write([]byte("HTTP/0.0 99\r\n"))
 		c.Close()
 	}()
-	c := http.Client{Transport: &Retry{Transport: http.DefaultTransport}}
+	c := http.Client{Transport: &Retry{
+		Transport: http.DefaultTransport,
+		TimeAfter: func(time.Duration) <-chan time.Time {
+			c := make(chan time.Time, 1)
+			c <- time.Now()
+			return c
+		},
+	}}
 	resp, err := c.Get("http://" + l.Addr().String())
 	if resp != nil || err == nil {
 		t.Fatal(err)
@@ -182,7 +217,14 @@ func TestRetry_post(t *testing.T) {
 				_, _ = w.Write([]byte("hi"))
 			}))
 			defer ts.Close()
-			c := http.Client{Transport: &Retry{Transport: http.DefaultTransport}}
+			c := http.Client{Transport: &Retry{
+				Transport: http.DefaultTransport,
+				TimeAfter: func(time.Duration) <-chan time.Time {
+					c := make(chan time.Time, 1)
+					c <- time.Now()
+					return c
+				},
+			}}
 			resp, err := c.Post(ts.URL, "text/plain", line.r)
 			if err != nil {
 				t.Fatal(err)
@@ -223,12 +265,4 @@ func (r *reader) Read(b []byte) (int, error) {
 		return i, io.EOF
 	}
 	return i, nil
-}
-
-func init() {
-	timeAfter = func(time.Duration) <-chan time.Time {
-		c := make(chan time.Time, 1)
-		c <- time.Now()
-		return c
-	}
 }
