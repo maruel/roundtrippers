@@ -16,6 +16,8 @@ http.Client.
   transparently compresses POST body. Reduce your egress bandwidth. 💰
 - 🔄 [Retry](https://pkg.go.dev/github.com/maruel/roundtrippers#Retry) smartly retries on HTTP 429 and 5xx,
   even on POST. It exposes a configurable backoff policy and sleeps can be nullified for fast replay tests.
+- ⏳ [Throttle](https://pkg.go.dev/github.com/maruel/roundtrippers#Throttle) slows down outbound requests.
+  Useful to scrape a website without triggering scraping filters.
 - 🗒 [Header](https://pkg.go.dev/github.com/maruel/roundtrippers#Header) adds HTTP
   headers to all requests, e.g. `User-Agent` or `Authorization`. It is very
   useful when recording with
