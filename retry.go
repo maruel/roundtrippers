@@ -122,7 +122,8 @@ func (e *ExponentialBackoff) ShouldRetry(ctx context.Context, start time.Time, t
 		code == http.StatusBadGateway || // 502
 		code == http.StatusServiceUnavailable || // 503
 		code == http.StatusGatewayTimeout || // 504
-		code == 529 // Non-standard code. See https://http.dev/529
+		code == 524 || // Cloudflare non-standard code. See https://http.dev/524
+		code == 529 // Qualys non-standard code. See https://http.dev/529
 }
 
 func (e *ExponentialBackoff) Backoff(start time.Time, try int) time.Duration {
