@@ -6,6 +6,7 @@ package roundtrippers_test
 
 import (
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -13,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -541,4 +543,29 @@ func ExampleRetry() {
 	fmt.Printf("Response: %q\n", string(b))
 	// Output:
 	// Response: "good"
+}
+
+func ExampleRetryPolicy() {
+	c := http.Client{Transport: &roundtrippers.Retry{
+		Transport: http.DefaultTransport,
+		Policy: &PolicyCodes{
+			RetryPolicy: &roundtrippers.DefaultRetryPolicy,
+			Codes:       []int{http.StatusPaymentRequired},
+		},
+	}}
+	// Call a web site that returns 402.
+	_, _ = c.Get("http://example.com")
+}
+
+// PolicyCodes is a RetryPolicy that will retry on additional status codes.
+type PolicyCodes struct {
+	roundtrippers.RetryPolicy
+	Codes []int
+}
+
+func (r *PolicyCodes) ShouldRetry(ctx context.Context, start time.Time, try int, err error, resp *http.Response) bool {
+	if resp != nil && slices.Contains(r.Codes, resp.StatusCode) {
+		return true
+	}
+	return r.RetryPolicy.ShouldRetry(ctx, start, try, err, resp)
 }

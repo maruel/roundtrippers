@@ -82,8 +82,8 @@ func (r *Retry) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // Unwrap implements Unwrapper.
-func (t *Retry) Unwrap() http.RoundTripper {
-	return t.Transport
+func (r *Retry) Unwrap() http.RoundTripper {
+	return r.Transport
 }
 
 // RetryPolicy determines when Retry should retry an HTTP request.
