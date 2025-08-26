@@ -85,7 +85,7 @@ func main() {
 	http.DefaultClient.Transport = &roundtrippers.RequestID{
 		Transport: &roundtrippers.AcceptCompressed{
 			Transport: &roundtrippers.Log{
-				L: logger,
+				Logger: logger,
 				Transport: &roundtrippers.Header{
 					Header:    http.Header{"Authorization": []string{"Bearer " + apiKey}},
 					Transport: http.DefaultTransport,
@@ -174,7 +174,7 @@ func main() {
 			Encoding: "gzip",
 			Transport: &roundtrippers.AcceptCompressed{
 				Transport: &roundtrippers.Log{
-					L: logger,
+					Logger: logger,
 					Transport: &roundtrippers.Header{
 						Header:    http.Header{"Authorization": []string{"Bearer " + apiKey}},
 						Transport: http.DefaultTransport,

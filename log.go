@@ -96,9 +96,9 @@ func (l *logBody) Close() error {
 		level = slog.LevelError
 	}
 	if l.includeResponseBody {
-		l.l.Log(l.ctx, level, "http", "size", l.responseSize, "err", l.err)
-	} else {
 		l.l.Log(l.ctx, level, "http", "body", l.content.String(), "err", l.err)
+	} else {
+		l.l.Log(l.ctx, level, "http", "size", l.responseSize, "err", l.err)
 	}
 	return err
 }

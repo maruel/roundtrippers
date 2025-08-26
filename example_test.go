@@ -413,7 +413,10 @@ func ExampleLog() {
 			},
 		}))
 
-	t := &roundtrippers.RequestID{Transport: &roundtrippers.Log{Transport: http.DefaultTransport, Logger: logger}}
+	t := &roundtrippers.RequestID{Transport: &roundtrippers.Log{
+		Transport: http.DefaultTransport,
+		Logger:    logger,
+	}}
 	c := http.Client{Transport: t}
 
 	resp, err := c.Get(ts.URL)
@@ -430,6 +433,51 @@ func ExampleLog() {
 	// level=INFO msg=http method=GET Content-Encoding=""
 	// level=INFO msg=http status=200 Content-Encoding="" Content-Length=7 Content-Type="text/plain; charset=utf-8"
 	// level=INFO msg=http size=7 err=<nil>
+	// Response: "Working"
+}
+
+func ExampleLog_with_body() {
+	// Example on how to hook into the HTTP client roundtripper to log each HTTP
+	// request and includes the response body.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("Working"))
+	}))
+	defer ts.Close()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout,
+		&slog.HandlerOptions{
+			Level: slog.LevelDebug,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				// For testing reproducibility, remove the timestamp, url, request id and duration.
+				if a.Key == "time" || a.Key == "url" || a.Key == "id" || a.Key == "dur" {
+					return slog.Attr{}
+				}
+				return a
+			},
+		}))
+
+	t := &roundtrippers.RequestID{Transport: &roundtrippers.Log{
+		Transport:           http.DefaultTransport,
+		Logger:              logger,
+		Level:               slog.LevelDebug,
+		IncludeResponseBody: true,
+	}}
+	c := http.Client{Transport: t}
+
+	resp, err := c.Get(ts.URL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	b, err := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Response: %q\n", string(b))
+	// Output:
+	// level=DEBUG msg=http method=GET Content-Encoding=""
+	// level=DEBUG msg=http status=200 Content-Encoding="" Content-Length=7 Content-Type="text/plain; charset=utf-8"
+	// level=DEBUG msg=http body=Working err=<nil>
 	// Response: "Working"
 }
 
