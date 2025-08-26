@@ -5,6 +5,7 @@
 package roundtrippers
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -17,9 +18,10 @@ import (
 // It defaults to slog.LevelInfo level unless an error is returned from the
 // roundtripper, then the final log is logged at error level.
 type Log struct {
-	Transport http.RoundTripper
-	L         *slog.Logger
-	Level     slog.Level
+	Transport           http.RoundTripper
+	Logger              *slog.Logger
+	Level               slog.Level
+	IncludeResponseBody bool
 
 	_ struct{}
 }
@@ -31,7 +33,7 @@ func (l *Log) RoundTrip(req *http.Request) (*http.Response, error) {
 	if rid == "" {
 		return nil, errors.New("roundtrippers.Log requires roundtrippers.RequestID")
 	}
-	ll := l.L.With("id", rid, "dur", elapsedTimeValue{start: time.Now()})
+	ll := l.Logger.With("id", rid, "dur", elapsedTimeValue{start: time.Now()})
 	ll.Log(ctx, l.Level, "http", "url", req.URL.String(), "method", req.Method, "Content-Encoding", req.Header.Get("Content-Encoding"))
 	resp, err := l.Transport.RoundTrip(req)
 	if err != nil {
@@ -41,7 +43,13 @@ func (l *Log) RoundTrip(req *http.Request) (*http.Response, error) {
 		cl := resp.Header.Get("Content-Length")
 		ct := resp.Header.Get("Content-Type")
 		ll.Log(ctx, l.Level, "http", "status", resp.StatusCode, "Content-Encoding", ce, "Content-Length", cl, "Content-Type", ct)
-		resp.Body = &logBody{body: resp.Body, ctx: ctx, l: ll, level: l.Level}
+		resp.Body = &logBody{
+			body:                resp.Body,
+			ctx:                 ctx,
+			l:                   ll,
+			level:               l.Level,
+			includeResponseBody: l.IncludeResponseBody,
+		}
 	}
 	return resp, err
 }
@@ -53,19 +61,24 @@ func (l *Log) Unwrap() http.RoundTripper {
 //
 
 type logBody struct {
-	body  io.ReadCloser
-	ctx   context.Context
-	l     *slog.Logger
-	level slog.Level
-
-	responseSize int64
-	err          error
+	body                io.ReadCloser
+	ctx                 context.Context
+	l                   *slog.Logger
+	level               slog.Level
+	includeResponseBody bool
+	content             bytes.Buffer
+	responseSize        int64
+	err                 error
 }
 
 func (l *logBody) Read(p []byte) (int, error) {
 	n, err := l.body.Read(p)
 	if n > 0 {
-		l.responseSize += int64(n)
+		if l.includeResponseBody {
+			_, _ = l.content.Write(p[:n])
+		} else {
+			l.responseSize += int64(n)
+		}
 	}
 	if err != nil && err != io.EOF && l.err == nil {
 		l.err = err
@@ -82,7 +95,11 @@ func (l *logBody) Close() error {
 	if l.err != nil {
 		level = slog.LevelError
 	}
-	l.l.Log(l.ctx, level, "http", "size", l.responseSize, "err", l.err)
+	if l.includeResponseBody {
+		l.l.Log(l.ctx, level, "http", "size", l.responseSize, "err", l.err)
+	} else {
+		l.l.Log(l.ctx, level, "http", "body", l.content.String(), "err", l.err)
+	}
 	return err
 }
 

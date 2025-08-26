@@ -60,7 +60,7 @@ func Example_gET() {
 			Transport: &roundtrippers.AcceptCompressed{
 				// Log requests via slog.
 				Transport: &roundtrippers.Log{
-					L: logger,
+					Logger: logger,
 					// Authenticate.
 					Transport: &roundtrippers.Header{
 						Header:    http.Header{"Authorization": []string{"Bearer " + apiKey}},
@@ -136,7 +136,7 @@ func Example_pOST() {
 				Transport: &roundtrippers.AcceptCompressed{
 					// Log requests via slog.
 					Transport: &roundtrippers.Log{
-						L: logger,
+						Logger: logger,
 						// Authenticate.
 						Transport: &roundtrippers.Header{
 							Header:    http.Header{"Authorization": []string{"Bearer " + apiKey}},
@@ -413,7 +413,7 @@ func ExampleLog() {
 			},
 		}))
 
-	t := &roundtrippers.RequestID{Transport: &roundtrippers.Log{Transport: http.DefaultTransport, L: logger}}
+	t := &roundtrippers.RequestID{Transport: &roundtrippers.Log{Transport: http.DefaultTransport, Logger: logger}}
 	c := http.Client{Transport: t}
 
 	resp, err := c.Get(ts.URL)

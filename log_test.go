@@ -15,7 +15,7 @@ import (
 )
 
 func TestLog_RoundTrip_error_bad_url(t *testing.T) {
-	c := http.Client{Transport: &roundtrippers.RequestID{Transport: &roundtrippers.Log{Transport: http.DefaultTransport, L: slog.New(slog.DiscardHandler)}}}
+	c := http.Client{Transport: &roundtrippers.RequestID{Transport: &roundtrippers.Log{Transport: http.DefaultTransport, Logger: slog.New(slog.DiscardHandler)}}}
 	resp, err := c.Get("")
 	if resp != nil || err == nil {
 		t.Fatal(resp, err)
@@ -23,7 +23,7 @@ func TestLog_RoundTrip_error_bad_url(t *testing.T) {
 }
 
 func TestLog_RoundTrip_error_missing_request_id(t *testing.T) {
-	c := http.Client{Transport: &roundtrippers.Log{Transport: http.DefaultTransport, L: slog.New(slog.DiscardHandler)}}
+	c := http.Client{Transport: &roundtrippers.Log{Transport: http.DefaultTransport, Logger: slog.New(slog.DiscardHandler)}}
 	resp, err := c.Get("")
 	if resp != nil || err == nil {
 		t.Fatal(resp, err)
@@ -37,7 +37,7 @@ func TestLog_RoundTrip_error_short(t *testing.T) {
 		_, _ = w.Write([]byte("too short"))
 	}))
 	defer ts.Close()
-	c := http.Client{Transport: &roundtrippers.RequestID{Transport: &roundtrippers.Log{Transport: http.DefaultTransport, L: slog.New(slog.DiscardHandler)}}}
+	c := http.Client{Transport: &roundtrippers.RequestID{Transport: &roundtrippers.Log{Transport: http.DefaultTransport, Logger: slog.New(slog.DiscardHandler)}}}
 	resp, err := c.Get(ts.URL)
 	if resp == nil || err != nil {
 		t.Fatal(resp, err)
