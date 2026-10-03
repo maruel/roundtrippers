@@ -80,7 +80,9 @@ func Example_gET() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	resp.Body.Close()
+	if err = resp.Body.Close(); err != nil {
+		log.Fatal(err)
+	}
 	fmt.Printf("GET: %s\n", string(b))
 }
 
@@ -157,7 +159,9 @@ func Example_pOST() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	resp.Body.Close()
+	if err = resp.Body.Close(); err != nil {
+		log.Fatal(err)
+	}
 	fmt.Printf("POST: %s\n", string(b))
 }
 
@@ -555,7 +559,8 @@ func ExampleRequestID() {
 func ExampleRetry() {
 	count := 0
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if count++; count < 3 {
+		count++
+		if count < 3 {
 			http.Error(w, "slow down", http.StatusTooManyRequests)
 		} else {
 			_, _ = w.Write([]byte("good"))
@@ -602,7 +607,13 @@ func ExampleRetryPolicy() {
 		},
 	}}
 	// Call a web site that returns 402.
-	_, _ = c.Get("http://example.com")
+	resp, err := c.Get("http://example.com")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err = resp.Body.Close(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // PolicyCodes is a RetryPolicy that will retry on additional status codes.

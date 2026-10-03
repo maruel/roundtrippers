@@ -5,6 +5,7 @@
 package roundtrippers_test
 
 import (
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -20,6 +21,11 @@ func TestLog(t *testing.T) {
 			t.Run("bad_url", func(t *testing.T) {
 				c := http.Client{Transport: &roundtrippers.RequestID{Transport: &roundtrippers.Log{Transport: http.DefaultTransport, Logger: slog.New(slog.DiscardHandler)}}}
 				resp, err := c.Get("")
+				if resp != nil {
+					if err2 := resp.Body.Close(); err2 != nil {
+						t.Error(err2)
+					}
+				}
 				if resp != nil || err == nil {
 					t.Fatal(resp, err)
 				}
@@ -28,6 +34,11 @@ func TestLog(t *testing.T) {
 			t.Run("missing_request_id", func(t *testing.T) {
 				c := http.Client{Transport: &roundtrippers.Log{Transport: http.DefaultTransport, Logger: slog.New(slog.DiscardHandler)}}
 				resp, err := c.Get("")
+				if resp != nil {
+					if err2 := resp.Body.Close(); err2 != nil {
+						t.Error(err2)
+					}
+				}
 				if resp != nil || err == nil {
 					t.Fatal(resp, err)
 				}
@@ -46,7 +57,7 @@ func TestLog(t *testing.T) {
 					t.Fatal(resp, err)
 				}
 				b, err := io.ReadAll(resp.Body)
-				if err != io.ErrUnexpectedEOF {
+				if !errors.Is(err, io.ErrUnexpectedEOF) {
 					t.Fatal(err)
 				}
 				if err = resp.Body.Close(); err != nil {

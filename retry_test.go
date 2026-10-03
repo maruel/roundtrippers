@@ -19,7 +19,14 @@ import (
 
 func TestRetry_error_compress_bad(t *testing.T) {
 	c := http.Client{Transport: &Retry{Transport: http.DefaultTransport}}
-	if _, err := c.Post("http://127.0.0.1:0", "text/plain", strings.NewReader("hello")); err == nil {
+	resp, err := c.Post("http://127.0.0.1:0", "text/plain", strings.NewReader("hello"))
+	if resp != nil {
+		if err2 := resp.Body.Close(); err2 != nil {
+			t.Error(err2)
+		}
+		t.Fatal("unexpected response")
+	}
+	if err == nil {
 		t.Fatal("expected error")
 	}
 }
@@ -30,7 +37,7 @@ func TestRetry_get(t *testing.T) {
 		v := count.Add(1)
 		t.Logf("%s: %d", r.Method, v)
 		if v == 1 {
-			w.WriteHeader(503)
+			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
 		_, _ = w.Write([]byte("hi"))
@@ -108,6 +115,11 @@ func TestRetry_invalid_scheme(t *testing.T) {
 		},
 	}}
 	resp, err := c.Get(ts.URL)
+	if resp != nil {
+		if err2 := resp.Body.Close(); err2 != nil {
+			t.Error(err2)
+		}
+	}
 	if resp != nil || err == nil {
 		t.Fatal(err)
 	}
@@ -139,6 +151,11 @@ func TestRetry_invalid_cert(t *testing.T) {
 		},
 	}}
 	resp, err := c.Get(ts1.URL)
+	if resp != nil {
+		if err2 := resp.Body.Close(); err2 != nil {
+			t.Error(err2)
+		}
+	}
 	if resp != nil || err == nil {
 		t.Fatal(err)
 	}
@@ -154,7 +171,11 @@ func TestRetry_invalid_protocol(t *testing.T) {
 			t.Fatalf("failed to listen on a port: %v", err)
 		}
 	}
-	defer l.Close()
+	t.Cleanup(func() {
+		if err := l.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	go func() {
 		c, err2 := l.Accept()
 		if err2 != nil {
@@ -162,8 +183,12 @@ func TestRetry_invalid_protocol(t *testing.T) {
 			return
 		}
 		// It doesn't trigger the code I want it to trigger.
-		c.Write([]byte("HTTP/0.0 99\r\n"))
-		c.Close()
+		if _, err := c.Write([]byte("HTTP/0.0 99\r\n")); err != nil {
+			t.Error(err)
+		}
+		if err := c.Close(); err != nil {
+			t.Error(err)
+		}
 	}()
 	c := http.Client{Transport: &Retry{
 		Transport: http.DefaultTransport,
@@ -174,6 +199,11 @@ func TestRetry_invalid_protocol(t *testing.T) {
 		},
 	}}
 	resp, err := c.Get("http://" + l.Addr().String())
+	if resp != nil {
+		if err2 := resp.Body.Close(); err2 != nil {
+			t.Error(err2)
+		}
+	}
 	if resp != nil || err == nil {
 		t.Fatal(err)
 	}
@@ -261,7 +291,7 @@ type reader struct {
 
 func (r *reader) Read(b []byte) (int, error) {
 	i := copy(b, r.s)
-	if r.s = r.s[i:]; len(r.s) == 0 {
+	if r.s = r.s[i:]; r.s == "" {
 		return i, io.EOF
 	}
 	return i, nil

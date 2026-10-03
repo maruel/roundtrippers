@@ -106,6 +106,7 @@ var DefaultRetryPolicy = ExponentialBackoff{
 	Exp:         2,
 }
 
+// ShouldRetry reports whether the context, error, response, and retry limits allow another attempt.
 func (e *ExponentialBackoff) ShouldRetry(ctx context.Context, start time.Time, try int, err error, resp *http.Response) bool {
 	if try >= e.MaxTryCount || time.Since(start) > e.MaxDuration || ctx.Err() != nil || isNotRetriableError(err) {
 		return false
@@ -126,6 +127,7 @@ func (e *ExponentialBackoff) ShouldRetry(ctx context.Context, start time.Time, t
 		code == 529 // Qualys non-standard code. See https://http.dev/529
 }
 
+// Backoff returns the exponential delay for the attempt.
 func (e *ExponentialBackoff) Backoff(start time.Time, try int) time.Duration {
 	return time.Duration(math.Pow(e.Exp, float64(try))) * time.Second
 }

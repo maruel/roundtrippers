@@ -28,6 +28,7 @@ type Throttle struct {
 	lastRequest time.Time
 }
 
+// RoundTrip waits for the next request slot, then delegates to Transport.
 func (t *Throttle) RoundTrip(req *http.Request) (*http.Response, error) {
 	if t.QPS <= 0 {
 		return t.Transport.RoundTrip(req)

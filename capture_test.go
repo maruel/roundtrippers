@@ -5,6 +5,7 @@
 package roundtrippers_test
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +20,11 @@ func TestCapture_RoundTrip_error_bad_url(t *testing.T) {
 	ch := make(chan roundtrippers.Record, 2)
 	c := http.Client{Transport: &roundtrippers.Capture{Transport: http.DefaultTransport, C: ch}}
 	resp, err := c.Get("")
+	if resp != nil {
+		if err2 := resp.Body.Close(); err2 != nil {
+			t.Error(err2)
+		}
+	}
 	if resp != nil || err == nil {
 		t.Fatal(resp, err)
 	}
@@ -57,7 +63,7 @@ func TestCapture_RoundTrip_error_short(t *testing.T) {
 		t.Fatal(resp, err)
 	}
 	b, err := io.ReadAll(resp.Body)
-	if err != io.ErrUnexpectedEOF {
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatal(err)
 	}
 	if err = resp.Body.Close(); err != nil {
@@ -116,7 +122,7 @@ func TestCapture_redirect(t *testing.T) {
 				t.Logf("%s: %d", r.Method, v)
 				if v == 1 {
 					t.Logf("redirecting")
-					http.Redirect(w, r, r.URL.String(), http.StatusTemporaryRedirect)
+					http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 					return
 				}
 				b, err := io.ReadAll(r.Body)
@@ -137,7 +143,7 @@ func TestCapture_redirect(t *testing.T) {
 			defer ts.Close()
 			ch := make(chan roundtrippers.Record, 3)
 			c := http.Client{Transport: &roundtrippers.Capture{Transport: http.DefaultTransport, C: ch}}
-			req, err := http.NewRequestWithContext(t.Context(), "POST", ts.URL, line.r)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, ts.URL, line.r)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -155,16 +161,18 @@ func TestCapture_redirect(t *testing.T) {
 			if err = resp.Body.Close(); err != nil {
 				t.Fatal(err)
 			}
-			if s := string(b); s != "world" {
-				// t.Fatalf("want \"world\", got %q", s)
-			}
-			if v := count.Load(); v != 2 {
-				// t.Fatalf("expected 2 requests, got %d", v)
-			}
-			// See https://github.com/golang/go/issues/73439
+			// A body without GetBody cannot be replayed after a redirect.
 			numCapture := 2
+			wantBody := "world"
 			if !line.hasGetBody {
 				numCapture = 1
+				wantBody = ""
+			}
+			if s := string(b); s != wantBody {
+				t.Fatalf("want %q, got %q", wantBody, s)
+			}
+			if v := count.Load(); v != int64(numCapture) {
+				t.Fatalf("expected %d requests, got %d", numCapture, v)
 			}
 			for i := range numCapture {
 				select {

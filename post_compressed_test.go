@@ -20,14 +20,28 @@ import (
 
 func TestPostCompressed_error_compress_bad(t *testing.T) {
 	c := http.Client{Transport: &roundtrippers.PostCompressed{Transport: http.DefaultTransport, Encoding: "bad"}}
-	if _, err := c.Post("http://127.0.0.1:0", "text/plain", strings.NewReader("hello")); err == nil {
+	resp, err := c.Post("http://127.0.0.1:0", "text/plain", strings.NewReader("hello"))
+	if resp != nil {
+		if err2 := resp.Body.Close(); err2 != nil {
+			t.Error(err2)
+		}
+		t.Fatal("unexpected response")
+	}
+	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestPostCompressed_error_compress_missing(t *testing.T) {
 	c := http.Client{Transport: &roundtrippers.PostCompressed{Transport: http.DefaultTransport, Encoding: ""}}
-	if _, err := c.Post("http://127.0.0.1:0", "text/plain", strings.NewReader("hello")); err == nil {
+	resp, err := c.Post("http://127.0.0.1:0", "text/plain", strings.NewReader("hello"))
+	if resp != nil {
+		if err2 := resp.Body.Close(); err2 != nil {
+			t.Error(err2)
+		}
+		t.Fatal("unexpected response")
+	}
+	if err == nil {
 		t.Fatal("expected error")
 	}
 }
@@ -126,7 +140,7 @@ func TestPostCompressed_redirect(t *testing.T) {
 				t.Logf("%s: %d", r.Method, v)
 				if v == 1 {
 					t.Logf("redirecting")
-					http.Redirect(w, r, r.URL.String(), http.StatusTemporaryRedirect)
+					http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 					return
 				}
 				if ce := r.Header.Get("Content-Encoding"); ce != "zstd" {
@@ -142,7 +156,7 @@ func TestPostCompressed_redirect(t *testing.T) {
 			}))
 			defer ts.Close()
 			c := http.Client{Transport: &roundtrippers.PostCompressed{Transport: http.DefaultTransport, Encoding: "zstd"}}
-			req, err := http.NewRequestWithContext(t.Context(), "POST", ts.URL, line.r)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, ts.URL, line.r)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -160,11 +174,15 @@ func TestPostCompressed_redirect(t *testing.T) {
 			if err = resp.Body.Close(); err != nil {
 				t.Fatal(err)
 			}
-			if s := string(b); s != "world" {
-				// t.Fatalf("want \"world\", got %q", s)
+			wantBody, wantCount := "world", int64(2)
+			if !line.hasGetBody {
+				wantBody, wantCount = "", 1
 			}
-			if v := count.Load(); v != 2 {
-				// t.Fatalf("expected 2 requests, got %d", v)
+			if s := string(b); s != wantBody {
+				t.Fatalf("want %q, got %q", wantBody, s)
+			}
+			if v := count.Load(); v != wantCount {
+				t.Fatalf("expected %d requests, got %d", wantCount, v)
 			}
 		})
 	}
@@ -239,7 +257,7 @@ type reader struct {
 
 func (r *reader) Read(b []byte) (int, error) {
 	i := copy(b, r.s)
-	if r.s = r.s[i:]; len(r.s) == 0 {
+	if r.s = r.s[i:]; r.s == "" {
 		return i, io.EOF
 	}
 	return i, nil

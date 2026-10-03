@@ -17,6 +17,11 @@ import (
 func TestAcceptCompressed_RoundTrip_error_bad_url(t *testing.T) {
 	c := http.Client{Transport: &roundtrippers.AcceptCompressed{Transport: http.DefaultTransport}}
 	resp, err := c.Get("")
+	if resp != nil {
+		if err2 := resp.Body.Close(); err2 != nil {
+			t.Error(err2)
+		}
+	}
 	if resp != nil || err == nil {
 		t.Fatal(resp, err)
 	}
@@ -92,6 +97,11 @@ func TestAcceptCompressed_error_bad(t *testing.T) {
 
 	c := http.Client{Transport: &roundtrippers.AcceptCompressed{Transport: http.DefaultTransport}}
 	resp, err := c.Get(ts.URL)
+	if resp != nil {
+		if err2 := resp.Body.Close(); err2 != nil {
+			t.Error(err2)
+		}
+	}
 	if resp != nil || err == nil {
 		t.Fatal(resp, err)
 	}

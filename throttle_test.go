@@ -138,16 +138,23 @@ func TestThrottle_RoundTrip_ContextCancel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp.Body.Close()
+	if err = resp.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	req, _ := http.NewRequestWithContext(ctx, "GET", ts.URL, nil)
+	ctx, cancel := context.WithCancel(t.Context())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	errChan := make(chan error)
 	go func() {
 		resp, err := c.Do(req)
 		if resp != nil {
-			resp.Body.Close()
+			if err2 := resp.Body.Close(); err2 != nil {
+				t.Error(err2)
+			}
 		}
 		errChan <- err
 	}()
