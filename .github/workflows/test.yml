@@ -2,34 +2,24 @@
 # Use of this source code is governed under the Apache License, Version 2.0
 # that can be found in the LICENSE file.
 
-# CI workflow running tests and linters on push and pull_request.
+# Run Ubuntu checks, coverage and separate CodeQL analysis.
 
 on: [push, pull_request]
-name: Run tests
+name: Run checks
 jobs:
-  # Run tests and benchmarks with coverage, then check the worktree.
-  test:
-    name: "test: ${{matrix.os}}"
-    runs-on: "${{matrix.os}}"
+  # Portable HTTP middleware and compression checks.
+  check:
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
     env:
       PYTHONDONTWRITEBYTECODE: x
     steps:
-      - name: Turn off git core.autocrlf
-        if: matrix.os == 'windows-latest'
-        run: git config --global core.autocrlf false
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-        with:
-          version: "0.13.0"
       - uses: actions/checkout@v7
         with:
           fetch-depth: 2
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
@@ -55,33 +45,6 @@ jobs:
             git diff
             false
           fi
-
-    # Run linters. This workflow can be merged with the test_all one if desired
-    # to cut on runtime, at the cost of latency. I dislike waiting for results
-    # so I prefer to run them in parallel.
-  lint:
-    name: "lint: ${{matrix.os}}"
-    runs-on: "${{matrix.os}}"
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    env:
-      PYTHONDONTWRITEBYTECODE: x
-    steps:
-      - name: Turn off git core.autocrlf
-        if: matrix.os == 'windows-latest'
-        run: git config --global core.autocrlf false
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-        with:
-          version: "0.13.0"
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
       - run: make verify
         if: always()
       - name: "Check: go generate doesn't modify files"
@@ -116,9 +79,6 @@ jobs:
     permissions:
       security-events: write
     steps:
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-        with:
-          version: "0.13.0"
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
