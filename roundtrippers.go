@@ -2,6 +2,8 @@
 // Use of this source code is governed under the Apache License, Version 2.0
 // that can be found in the LICENSE file.
 
+// Compose HTTP transports with reusable request and response middleware.
+
 // Package roundtrippers is a collection of high quality http.RoundTripper to
 // augment your http.Client.
 package roundtrippers

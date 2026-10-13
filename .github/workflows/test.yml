@@ -11,7 +11,6 @@ jobs:
   test:
     name: "test: ${{matrix.os}}"
     runs-on: "${{matrix.os}}"
-    continue-on-error: true
     defaults:
       run:
         shell: bash
@@ -25,15 +24,18 @@ jobs:
       - name: Turn off git core.autocrlf
         if: matrix.os == 'windows-latest'
         run: git config --global core.autocrlf false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.13.0"
       - uses: actions/checkout@v7
         with:
           fetch-depth: 2
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      - name: "Check: go test -cover -short"
+      - name: "Check: make test"
         if: always()
-        run: go test -timeout=600s -v -covermode=count -coverprofile coverage.txt -bench=. -benchtime=1x -short ./...
+        run: make test
         # Don't send code coverage if anything failed to reduce spam.
       - uses: codecov/codecov-action@v7
         with:
@@ -60,7 +62,6 @@ jobs:
   lint:
     name: "lint: ${{matrix.os}}"
     runs-on: "${{matrix.os}}"
-    continue-on-error: true
     defaults:
       run:
         shell: bash
@@ -74,12 +75,15 @@ jobs:
       - name: Turn off git core.autocrlf
         if: matrix.os == 'windows-latest'
         run: git config --global core.autocrlf false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.13.0"
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - run: make verify
-        if: always() && matrix.os == 'ubuntu-latest'
+        if: always()
       - name: "Check: go generate doesn't modify files"
         if: always()
         run: |
@@ -105,7 +109,6 @@ jobs:
   codeql:
     name: "codeql: ${{matrix.os}}"
     runs-on: "${{matrix.os}}"
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -113,6 +116,9 @@ jobs:
     permissions:
       security-events: write
     steps:
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.13.0"
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
