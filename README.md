@@ -37,7 +37,6 @@ http.Client.
 
 Go 1.26.0 or later is required.
 
-- `make build` builds all packages.
 - `make fix` applies lint and formatting fixes.
 - `make test` runs the tests.
 - `make verify` runs the static checks with pinned tools.
