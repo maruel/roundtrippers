@@ -20,6 +20,8 @@ verify:
 
 fix:
 	@go tool golangci-lint fmt
+	@go tool golangci-lint run --show-stats=false --fix ./...
+	@uv run --locked ruff check --quiet --fix scripts
 	@uv run --locked ruff format scripts >/dev/null
 	@uv run --locked python scripts/update_agents_file_index.py
 
