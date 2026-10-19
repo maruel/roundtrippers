@@ -16,11 +16,11 @@ verify:
 	@uv run --locked python scripts/lint_binaries.py
 	@uv run --locked python scripts/update_agents_file_index.py --check
 	@uv run --locked ruff check scripts
-	@uv run --locked ruff format --check scripts
+	@uv run --locked ruff format --check --quiet scripts
 
 fix:
 	@go tool golangci-lint fmt
-	@uv run --locked ruff format scripts
+	@uv run --locked ruff format scripts >/dev/null
 	@uv run --locked python scripts/update_agents_file_index.py
 
 test:
