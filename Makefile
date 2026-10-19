@@ -8,9 +8,9 @@
 .PHONY: fix git-hooks help test verify
 
 verify:
+	@go mod tidy -diff
 	@go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 	@go tool golangci-lint run --show-stats=false ./...
-	@go vet ./...
 	@go test -run '^$$' ./...
 	@go tool addlicense -ignore pyproject.toml -ignore '.venv/**' -ignore '.ruff_cache/**' -check .
 	@uv run --locked python scripts/lint_binaries.py
