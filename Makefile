@@ -15,7 +15,7 @@ verify:
 	@go tool addlicense -ignore pyproject.toml -ignore '.venv/**' -ignore '.ruff_cache/**' -check .
 	@uv run --locked python scripts/lint_binaries.py
 	@uv run --locked python scripts/update_agents_file_index.py --check
-	@uv run --locked ruff check scripts
+	@uv run --locked ruff check --quiet scripts
 	@uv run --locked ruff format --check --quiet scripts
 
 fix:
