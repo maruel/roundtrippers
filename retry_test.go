@@ -21,7 +21,12 @@ import (
 
 func TestRetry_error_compress_bad(t *testing.T) {
 	c := http.Client{Transport: &Retry{Transport: http.DefaultTransport}}
-	resp, err := c.Post("http://127.0.0.1:0", "text/plain", strings.NewReader("hello"))
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "http://127.0.0.1:0", strings.NewReader("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	resp, err := c.Do(req)
 	if resp != nil {
 		if err2 := resp.Body.Close(); err2 != nil {
 			t.Error(err2)
@@ -53,7 +58,11 @@ func TestRetry_get(t *testing.T) {
 			return c
 		},
 	}}
-	resp, err := c.Get(ts.URL)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +96,11 @@ func TestRetry_redirect_infinite(t *testing.T) {
 			return c
 		},
 	}}
-	resp, err := c.Get(ts.URL)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -116,7 +129,11 @@ func TestRetry_invalid_scheme(t *testing.T) {
 			return c
 		},
 	}}
-	resp, err := c.Get(ts.URL)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
 	if resp != nil {
 		if err2 := resp.Body.Close(); err2 != nil {
 			t.Error(err2)
@@ -152,7 +169,11 @@ func TestRetry_invalid_cert(t *testing.T) {
 			return c
 		},
 	}}
-	resp, err := c.Get(ts1.URL)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts1.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
 	if resp != nil {
 		if err2 := resp.Body.Close(); err2 != nil {
 			t.Error(err2)
@@ -167,9 +188,10 @@ func TestRetry_invalid_cert(t *testing.T) {
 }
 
 func TestRetry_invalid_protocol(t *testing.T) {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
+	lc := net.ListenConfig{}
+	l, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
-		if l, err = net.Listen("tcp6", "[::1]:0"); err != nil {
+		if l, err = lc.Listen(t.Context(), "tcp6", "[::1]:0"); err != nil {
 			t.Fatalf("failed to listen on a port: %v", err)
 		}
 	}
@@ -200,7 +222,11 @@ func TestRetry_invalid_protocol(t *testing.T) {
 			return c
 		},
 	}}
-	resp, err := c.Get("http://" + l.Addr().String())
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+l.Addr().String(), http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
 	if resp != nil {
 		if err2 := resp.Body.Close(); err2 != nil {
 			t.Error(err2)
@@ -257,7 +283,12 @@ func TestRetry_post(t *testing.T) {
 					return c
 				},
 			}}
-			resp, err := c.Post(ts.URL, "text/plain", line.r)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, ts.URL, line.r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Content-Type", "text/plain")
+			resp, err := c.Do(req)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -280,7 +311,8 @@ func TestRetry_post(t *testing.T) {
 
 func TestRetry_Unwrap(t *testing.T) {
 	var r http.RoundTripper = &Retry{Transport: http.DefaultTransport}
-	if r.(Unwrapper).Unwrap() != http.DefaultTransport {
+	u, ok := r.(Unwrapper)
+	if !ok || u.Unwrap() != http.DefaultTransport {
 		t.Fatal("unexpected")
 	}
 }

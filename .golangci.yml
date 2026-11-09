@@ -9,27 +9,67 @@ run:
   tests: true
 linters:
   enable:
+    - asasalint
+    - asciicheck
+    - bidichk
     - bodyclose
+    - canonicalheader
     - contextcheck
     - copyloopvar
+    - dupl
     - dupword
     - durationcheck
+    - embeddedstructfieldcheck
+    - errchkjson
+    - errname
     - errorlint
     - exhaustive
+    - exptostd
+    - fatcontext
+    - forcetypeassert
+    - funcorder
+    - gocheckcompilerdirectives
+    - gochecksumtype
     - gocritic
+    - godoclint
     - godot
+    - gomoddirectives
+    - goprintffuncname
     - gosec
-    - misspell
+    - gosmopolitan
+    - grouper
+    - iface
+    - importas
+    - inamedparam
+    - intrange
+    - iotamixing
+    - loggercheck
+    - makezero
+    - mirror
+    - modernize
+    - musttag
+    - nakedret
     - nilerr
+    - nilnesserr
     - nilnil
+    - noctx
     - nolintlint
+    - nosprintfhostport
     - perfsprint
     - prealloc
+    - predeclared
+    - reassign
+    - recvcheck
     - revive
+    - sloglint
+    - sqlclosecheck
+    - tparallel
     - unconvert
     - unparam
     - unused
     - usestdlibvars
+    - usetesting
+    - wastedassign
     - whitespace
   settings:
     exhaustive:
@@ -64,6 +104,10 @@ linters:
           disabled: false
   exclusions:
     rules:
+      # Standalone examples intentionally demonstrate the HTTP convenience API
+      # and repeat complete, copyable compression examples.
+      - path: ^example_test\.go$
+        linters: [dupl, noctx]
       # Retry classifies direct net/http errors, not arbitrary error chains.
       - path: ^retry\.go$
         linters: [errorlint]

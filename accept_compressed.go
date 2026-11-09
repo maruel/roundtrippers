@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 
 	"github.com/andybalholm/brotli"
 	"github.com/klauspost/compress/zstd"
@@ -99,8 +100,8 @@ func (b *body) Read(p []byte) (n int, err error) {
 func (b *body) Close() error {
 	var errs []error
 	// Close in reverse order.
-	for i := len(b.c) - 1; i >= 0; i-- {
-		if err := b.c[i].Close(); err != nil {
+	for _, v := range slices.Backward(b.c) {
+		if err := v.Close(); err != nil {
 			errs = append(errs, err)
 		}
 	}

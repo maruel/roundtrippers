@@ -21,7 +21,8 @@ import (
 
 func TestThrottle_Unwrap(t *testing.T) {
 	var r http.RoundTripper = &roundtrippers.Throttle{Transport: http.DefaultTransport}
-	if r.(roundtrippers.Unwrapper).Unwrap() != http.DefaultTransport {
+	u, ok := r.(roundtrippers.Unwrapper)
+	if !ok || u.Unwrap() != http.DefaultTransport {
 		t.Fatal("unexpected")
 	}
 }
@@ -52,7 +53,11 @@ func TestThrottle_RoundTrip(t *testing.T) {
 	// The first request should not sleep.
 	// Subsequent requests should sleep for a bit.
 	for i := range 3 {
-		resp, err := c.Get(ts.URL)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := c.Do(req)
 		if err != nil {
 			t.Fatalf("req %d: %v", i, err)
 		}
@@ -98,7 +103,11 @@ func TestThrottle_NoThrottle(t *testing.T) {
 	}
 
 	for i := range 3 {
-		resp, err := c.Get(ts.URL)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := c.Do(req)
 		if err != nil {
 			t.Fatalf("req %d: %v", i, err)
 		}
@@ -136,7 +145,11 @@ func TestThrottle_RoundTrip_ContextCancel(t *testing.T) {
 	}
 
 	// First request to set the last request time.
-	resp, err := c.Get(ts.URL)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +158,7 @@ func TestThrottle_RoundTrip_ContextCancel(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(t.Context())
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL, http.NoBody)
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, ts.URL, http.NoBody)
 	if err != nil {
 		t.Fatal(err)
 	}

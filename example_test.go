@@ -621,6 +621,7 @@ func ExampleRetryPolicy() {
 // PolicyCodes is a RetryPolicy that will retry on additional status codes.
 type PolicyCodes struct {
 	roundtrippers.RetryPolicy
+
 	Codes []int
 }
 

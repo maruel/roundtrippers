@@ -21,7 +21,11 @@ import (
 func TestCapture_RoundTrip_error_bad_url(t *testing.T) {
 	ch := make(chan roundtrippers.Record, 2)
 	c := http.Client{Transport: &roundtrippers.Capture{Transport: http.DefaultTransport, C: ch}}
-	resp, err := c.Get("")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "", http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
 	if resp != nil {
 		if err2 := resp.Body.Close(); err2 != nil {
 			t.Error(err2)
@@ -60,7 +64,11 @@ func TestCapture_RoundTrip_error_short(t *testing.T) {
 	defer ts.Close()
 	ch := make(chan roundtrippers.Record, 2)
 	c := http.Client{Transport: &roundtrippers.Capture{Transport: http.DefaultTransport, C: ch}}
-	resp, err := c.Get(ts.URL)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
 	if resp == nil || err != nil {
 		t.Fatal(resp, err)
 	}
@@ -186,7 +194,7 @@ func TestCapture_redirect(t *testing.T) {
 						t.Fatalf("expected response: %#v", captured.Response)
 					}
 					if captured.Err != nil {
-						t.Fatalf("unexpected error %s", err)
+						t.Fatalf("unexpected error %s", captured.Err)
 					}
 				default:
 					t.Errorf("expected a capture #%d", i)
@@ -203,7 +211,8 @@ func TestCapture_redirect(t *testing.T) {
 
 func TestCapture_Unwrap(t *testing.T) {
 	var r http.RoundTripper = &roundtrippers.Capture{Transport: http.DefaultTransport}
-	if r.(roundtrippers.Unwrapper).Unwrap() != http.DefaultTransport {
+	u, ok := r.(roundtrippers.Unwrapper)
+	if !ok || u.Unwrap() != http.DefaultTransport {
 		t.Fatal("unexpected")
 	}
 }

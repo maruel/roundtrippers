@@ -61,7 +61,7 @@ func (r *Retry) RoundTrip(req *http.Request) (*http.Response, error) {
 		if resp != nil {
 			// "Retry-After" is generally sent along HTTP 429. If the server then this header, use this instead of our
 			// backoff algorithm.
-			ok := false
+			var ok bool
 			if sleep, ok = parseRetryAfterHeader(resp.Header.Get("Retry-After")); !ok {
 				sleep = policy.Backoff(start, try)
 			}

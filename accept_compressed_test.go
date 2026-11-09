@@ -18,7 +18,11 @@ import (
 
 func TestAcceptCompressed_RoundTrip_error_bad_url(t *testing.T) {
 	c := http.Client{Transport: &roundtrippers.AcceptCompressed{Transport: http.DefaultTransport}}
-	resp, err := c.Get("")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "", http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
 	if resp != nil {
 		if err2 := resp.Body.Close(); err2 != nil {
 			t.Error(err2)
@@ -51,7 +55,11 @@ func TestAcceptCompressed_RoundTrip_error_short(t *testing.T) {
 	}))
 	defer ts.Close()
 	c := http.Client{Transport: &roundtrippers.AcceptCompressed{Transport: http.DefaultTransport}}
-	resp, err := c.Get(ts.URL)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
 	if resp == nil || err != nil {
 		t.Fatal(resp, err)
 	}
@@ -76,7 +84,11 @@ func TestAcceptCompressed_identity(t *testing.T) {
 	defer ts.Close()
 
 	c := http.Client{Transport: &roundtrippers.AcceptCompressed{Transport: http.DefaultTransport}}
-	resp, err := c.Get(ts.URL)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +110,11 @@ func TestAcceptCompressed_error_bad(t *testing.T) {
 	defer ts.Close()
 
 	c := http.Client{Transport: &roundtrippers.AcceptCompressed{Transport: http.DefaultTransport}}
-	resp, err := c.Get(ts.URL)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := c.Do(req)
 	if resp != nil {
 		if err2 := resp.Body.Close(); err2 != nil {
 			t.Error(err2)
@@ -111,7 +127,8 @@ func TestAcceptCompressed_error_bad(t *testing.T) {
 
 func TestAcceptCompressed_Unwrap(t *testing.T) {
 	var r http.RoundTripper = &roundtrippers.AcceptCompressed{Transport: http.DefaultTransport}
-	if r.(roundtrippers.Unwrapper).Unwrap() != http.DefaultTransport {
+	u, ok := r.(roundtrippers.Unwrapper)
+	if !ok || u.Unwrap() != http.DefaultTransport {
 		t.Fatal("unexpected")
 	}
 }
